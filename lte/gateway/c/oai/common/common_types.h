@@ -91,7 +91,7 @@ typedef uint64_t enb_s1ap_id_key_t;
 #define GNB_UE_NGAP_ID_MASK 0x00FFFFFF
 #define GNB_UE_NGAP_ID_FMT "0x%06" PRIX32
 
-#define AMF_UE_NGAP_ID_FMT "0x%08" PRIX32
+#define AMF_UE_NGAP_ID_FMT "0x%10" PRIX32
 
 /* INVALID_AMF_UE_NGAP_ID
  * Any value between 0..2^32-1, is allowed/valid as per 3GPP spec 36.413.

@@ -140,6 +140,29 @@ typedef enum {
   sIZE += sizeof(uint16_t)
 #endif
 
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+#define ENCODE_BUFFER(buffer, value, size)                                     \
+  for (int i = size - 1, j = 0; i >= 0; i--, j++) {                            \
+    buffer[i] = (uint8_t)((value >> (j * 8)) & 0xFF);                          \
+  }
+#else
+#define ENCODE_BUFFER(buffer, value, size)                                     \
+  for (int i = 0; i < size; i++) {                                             \
+    buffer[i] = (((value) >> (i * 8)) & 0xFF);                                 \
+  }
+#endif
+
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+#define DECODE_BUFFER(buffer, value, size)                                     \
+  for (int i = size - 1, j = 0; i >= 0; i--, j++) {                            \
+    value |= ((buffer[i]) << (j * 8));                                         \
+  }
+#else
+#define DECODE_BUFFER(buffer, value, size)                                     \
+  for (int i = 0; i < size; i++) {                                             \
+    value |= ((buffer[i]) << (i * 8));                                         \
+  }
+#endif
 #define ENCODE_U8(buffer, value, size)                                         \
   *(uint8_t*) (buffer) = value;                                                \
   size += sizeof(uint8_t)

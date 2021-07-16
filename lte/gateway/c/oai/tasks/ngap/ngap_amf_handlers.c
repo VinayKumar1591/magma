@@ -705,7 +705,9 @@ int ngap_amf_handle_initial_context_setup_response(
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
 
   if (ie) {
-    amf_ue_ngap_id = (uint32_t) ie->value.choice.AMF_UE_NGAP_ID;
+    DECODE_BUFFER(
+        ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+        ie->value.choice.AMF_UE_NGAP_ID.size);
     if ((ue_ref_p = ngap_state_get_ue_amfid((uint32_t) amf_ue_ngap_id)) ==
         NULL) {
       OAILOG_DEBUG(
@@ -884,7 +886,9 @@ int ngap_amf_handle_ue_context_release_request(
       Ngap_UEContextReleaseRequest_IEs_t, ie, container,
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
   if (ie) {
-    amf_ue_ngap_id = ie->value.choice.AMF_UE_NGAP_ID;
+    DECODE_BUFFER(
+        ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+        ie->value.choice.AMF_UE_NGAP_ID.size);
   } else {
     OAILOG_FUNC_RETURN(LOG_NGAP, RETURNerror);
   }
@@ -893,8 +897,7 @@ int ngap_amf_handle_ue_context_release_request(
       Ngap_UEContextReleaseRequest_IEs_t, ie, container,
       Ngap_ProtocolIE_ID_id_RAN_UE_NGAP_ID, true);
   if (ie) {
-    gnb_ue_ngap_id = (gnb_ue_ngap_id_t)(
-        ie->value.choice.AMF_UE_NGAP_ID & GNB_UE_NGAP_ID_MASK);
+    gnb_ue_ngap_id = (gnb_ue_ngap_id_t)(amf_ue_ngap_id & GNB_UE_NGAP_ID_MASK);
   } else {
     OAILOG_FUNC_RETURN(LOG_NGAP, RETURNerror);
   }
@@ -1062,8 +1065,13 @@ int ngap_amf_generate_ue_context_release_command(
   ie->criticality   = Ngap_Criticality_reject;
   ie->value.present = Ngap_UEContextReleaseCommand_IEs__value_PR_UE_NGAP_IDs;
   ie->value.choice.UE_NGAP_IDs.present = Ngap_UE_NGAP_IDs_PR_uE_NGAP_ID_pair;
-  ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.aMF_UE_NGAP_ID =
-      ue_ref_p->amf_ue_ngap_id;
+  ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.aMF_UE_NGAP_ID.size = 5;
+  ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.aMF_UE_NGAP_ID.buf =
+      (uint8_t*) calloc(5, sizeof(uint8_t));
+  ENCODE_BUFFER(
+      ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.aMF_UE_NGAP_ID.buf,
+      ue_ref_p->amf_ue_ngap_id,
+      ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.aMF_UE_NGAP_ID.size);
   ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.rAN_UE_NGAP_ID =
       ue_ref_p->gnb_ue_ngap_id;
   ie->value.choice.UE_NGAP_IDs.choice.uE_NGAP_ID_pair.iE_Extensions = NULL;
@@ -1179,7 +1187,9 @@ int ngap_amf_handle_ue_context_release_complete(
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
 
   if (ie) {
-    amf_ue_ngap_id = ie->value.choice.AMF_UE_NGAP_ID;
+    DECODE_BUFFER(
+        ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+        ie->value.choice.AMF_UE_NGAP_ID.size);
   } else {
     OAILOG_FUNC_RETURN(LOG_NGAP, RETURNok);
   }
@@ -1234,7 +1244,9 @@ int ngap_amf_handle_initial_context_setup_failure(
       Ngap_InitialContextSetupFailureIEs_t, ie, container,
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
   if (ie) {
-    amf_ue_ngap_id = ie->value.choice.AMF_UE_NGAP_ID;
+    DECODE_BUFFER(
+        ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+        ie->value.choice.AMF_UE_NGAP_ID.size);
   } else {
     OAILOG_FUNC_RETURN(LOG_NGAP, RETURNok);
   }
@@ -1652,7 +1664,9 @@ int ngap_amf_handle_pduSession_release_response(
   NGAP_FIND_PROTOCOLIE_BY_ID(
       Ngap_PDUSessionResourceReleaseResponseIEs_t, ie, container,
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
-  amf_ue_ngap_id = ie->value.choice.AMF_UE_NGAP_ID;
+  DECODE_BUFFER(
+      ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+      ie->value.choice.AMF_UE_NGAP_ID.size);
 
   if ((ie) &&
       (ue_ref_p = ngap_state_get_ue_amfid((uint32_t) amf_ue_ngap_id)) == NULL) {
@@ -1681,8 +1695,8 @@ int ngap_amf_handle_pduSession_release_response(
 
   ngap_imsi_map_t* imsi_map = get_ngap_imsi_map();
   hashtable_uint64_ts_get(
-      imsi_map->amf_ue_id_imsi_htbl,
-      (const hash_key_t) ie->value.choice.AMF_UE_NGAP_ID, &imsi64);
+      imsi_map->amf_ue_id_imsi_htbl, (const hash_key_t) amf_ue_ngap_id,
+      &imsi64);
 
   message_p =
       itti_alloc_new_message(TASK_NGAP, NGAP_PDUSESSIONRESOURCE_REL_RSP);
@@ -1745,7 +1759,9 @@ int ngap_amf_handle_pduSession_setup_response(
       Ngap_PDUSessionResourceSetupResponseIEs_t, ie, container,
       Ngap_ProtocolIE_ID_id_AMF_UE_NGAP_ID, true);
   if (ie) {
-    amf_ue_ngap_id = ie->value.choice.AMF_UE_NGAP_ID;
+    DECODE_BUFFER(
+        ie->value.choice.AMF_UE_NGAP_ID.buf, amf_ue_ngap_id,
+        ie->value.choice.AMF_UE_NGAP_ID.size);
   } else {
     OAILOG_FUNC_RETURN(LOG_NGAP, RETURNerror);
   }
