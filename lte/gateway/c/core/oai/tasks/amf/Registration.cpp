@@ -30,6 +30,7 @@ extern "C" {
 #include "amf_as.h"
 #include "amf_sap.h"
 #include "amf_recv.h"
+#include "amf_app_state_manager.h"
 #include "amf_app_timer_management.h"
 
 #define M5GS_REGISTRATION_RESULT_MAXIMUM_LENGTH 1
@@ -935,7 +936,9 @@ int amf_reg_send(amf_sap_t* const msg) {
         }
 
         /* Update the state */
-        // ue_amf_context->mm_state = REGISTERED_CONNECTED;
+        ue_amf_context->mm_state = REGISTERED_CONNECTED;
+        OAILOG_INFO(
+            LOG_NAS_AMF, "UE current state is %u\n", ue_amf_context->mm_state);
       } break;
       case AMFREG_COMMON_PROC_REJ: {
       }
