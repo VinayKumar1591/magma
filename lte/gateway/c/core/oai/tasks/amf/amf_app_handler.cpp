@@ -284,8 +284,9 @@ static bool amf_app_construct_guti(
     guti_p->guamfi.plmn        = amf_config.guamfi.guamfi[num_amf].plmn;
     guti_p->guamfi.amf_set_id  = amf_config.guamfi.guamfi[num_amf].amf_set_id;
     guti_p->guamfi.amf_pointer = amf_config.guamfi.guamfi[num_amf].amf_pointer;
-    guti_p->guamfi.amf_regionid =amf_config.guamfi.guamfi[num_amf].amf_regionid;
-    is_guti_valid              = true;
+    guti_p->guamfi.amf_regionid =
+        amf_config.guamfi.guamfi[num_amf].amf_regionid;
+    is_guti_valid = true;
   }
 
   amf_config_unlock(&amf_config);
@@ -558,6 +559,7 @@ void amf_app_handle_pdu_session_response(
   amf_smf_t amf_smf_msg;
   // TODO: hardcoded for now, addressed in the upcoming multi-UE PR
   uint32_t ue_id = 0;
+  int rc         = RETURNerror;
 
   imsi64_t imsi64;
   IMSI_STRING_TO_IMSI64(pdu_session_resp->imsi, &imsi64);
@@ -615,9 +617,7 @@ void amf_app_handle_pdu_session_response(
     amf_sap.u.amf_as.u.establish.pdu_session_reactivation_status =
         (1 << smf_ctx->smf_proc_data.pdu_session_identity.pdu_session_id);
     amf_sap.u.amf_as.u.establish.guti = ue_context->amf_context.m5_guti;
-    amf_sap.u.amf_as.u.establish.guti.m_tmsi =
-        htonl(amf_sap.u.amf_as.u.establish.guti.m_tmsi);
-    rc = amf_sap_send(&amf_sap);
+    rc                                = amf_sap_send(&amf_sap);
     if (RETURNok == rc) {
       ue_context->mm_state == REGISTERED_CONNECTED;
     }
@@ -669,13 +669,13 @@ int amf_app_handle_pdu_session_accept(
   SmfMsg* smf_msg = nullptr;
   bstring buffer;
   // smf_ctx declared and set but not used, commented to cleanup warnings
-  // smf_context_t* smf_ctx         = nullptr;
+  smf_context_t* smf_ctx         = nullptr;
   ue_m5gmm_context_s* ue_context = nullptr;
 
   // Handle smf_context
   ue_context = amf_ue_context_exists_amf_ue_ngap_id(ue_id);
   if (ue_context) {
-    // smf_ctx = &(ue_context->amf_context.smf_context);
+    smf_ctx = &(ue_context->amf_context.smf_context);
   } else {
     OAILOG_INFO(LOG_AMF_APP, "UE Context not found for UE ID: %d", ue_id);
   }

@@ -521,7 +521,7 @@ static int amf_service_acceptmsg(
   nas_msg->security_protected.plain.amf.msg.service_accept.message_type
       .msg_type = M5G_SERVICE_ACCEPT;
   nas_msg->header.security_header_type =
-      SECURITY_HEADER_TYPE_INTEGRITY_PROTECTED_CYPHERED; 
+      SECURITY_HEADER_TYPE_INTEGRITY_PROTECTED_CYPHERED;
 
   if (msg->pdu_sesion_status_ie & AMF_AS_PDU_SESSION_STATUS) {
     nas_msg->security_protected.plain.amf.msg.service_accept.pdu_session_status
@@ -1378,11 +1378,6 @@ uint16_t amf_as_establish_cnf(
   amf_nas_message_t nas_msg = {0};
   // Setting-up the AS message
   as_msg->ue_id = msg->ue_id;
-
-  if (msg->pds_id.guti == NULL) {
-    OAILOG_WARNING(LOG_NAS_AMF, "AMFAS-SAP - GUTI is NULL...");
-    OAILOG_FUNC_RETURN(LOG_NAS_AMF, ret_val);
-  }
 
   as_msg->nas_msg                              = msg->nas_msg;
   as_msg->presencemask                         = msg->presencemask;
