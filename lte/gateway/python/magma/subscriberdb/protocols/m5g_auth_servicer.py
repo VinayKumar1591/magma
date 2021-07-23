@@ -13,6 +13,7 @@ limitations under the License.
 
 import logging
 
+from google.protobuf.json_format import MessageToJson
 from magma.subscriberdb import metrics
 from magma.subscriberdb.crypto.utils import CryptoError
 from magma.subscriberdb.store.base import SubscriberNotFoundError
@@ -23,9 +24,10 @@ class M5GAuthRpcServicer(subscriberauth_pb2_grpc.M5GSubscriberAuthenticationServ
     gRPC based server for the S6aProxy.
     """
 
-    def __init__(self, lte_processor):
+    def __init__(self, lte_processor, print_grpc_payload: bool = False):
         self.lte_processor = lte_processor
         logging.info("starting s6a_proxy servicer")
+        self._print_grpc_payload = print_grpc_payload
 
     def add_to_server(self, server):
         """
@@ -37,10 +39,6 @@ class M5GAuthRpcServicer(subscriberauth_pb2_grpc.M5GSubscriberAuthenticationServ
         imsi = request.user_name
         aia = subscriberauth_pb2.M5GAuthenticationInformationAnswer()
         try:
-            logging.info("========================")
-            logging.info(request)
-
-            plmn = request.visited_plmn
 
             re_sync_info = request.resync_info
             # resync_info =
@@ -51,31 +49,18 @@ class M5GAuthRpcServicer(subscriberauth_pb2_grpc.M5GSubscriberAuthenticationServ
                 auts = re_sync_info[16:]
                 self.lte_processor.resync_lte_auth_seq(imsi, rand, auts)
 
-            rand, xres, autn, kasme ,ck, ik = \
-                self.lte_processor.generate_lte_auth_vector(imsi, plmn)
+            m5g_ran_auth_vectors = \
+                self.lte_processor.generate_m5g_auth_vector(imsi, request.serving_network_name.encode('utf-8'))
 
-            xres_star = \
-                self.lte_processor.generate_5G_xres_star_vector(imsi, ck, ik,
-                                            request.serving_network_name,
-                                            rand, xres)
-            kausf = \
-                self.lte_processor.generate_5G_kausf_vector(imsi, ck, ik,
-                                        request.serving_network_name,
-                                        autn)
-
-            kseaf = \
-                self.lte_processor.generate_5G_kseaf_vector(imsi, kausf,
-                                            request.serving_network_name)
-                                                
             metrics.M5G_AUTH_SUCCESS_TOTAL.inc()
 
             # Generate and return response message
             aia.error_code = subscriberauth_pb2.SUCCESS
             m5gauth_vector = aia.m5gauth_vectors.add()
-            m5gauth_vector.rand = bytes(rand)
-            m5gauth_vector.xres_star = xres_star[16:]
-            m5gauth_vector.autn = autn
-            m5gauth_vector.kseaf = kseaf 
+            m5gauth_vector.rand = bytes(m5g_ran_auth_vectors.rand)
+            m5gauth_vector.xres_star = m5g_ran_auth_vectors.xres_star[16:]
+            m5gauth_vector.autn = m5g_ran_auth_vectors.autn
+            m5gauth_vector.kseaf = m5g_ran_auth_vectors.kseaf
             return aia
 
         except CryptoError as e:
@@ -92,3 +77,21 @@ class M5GAuthRpcServicer(subscriberauth_pb2_grpc.M5GSubscriberAuthenticationServ
             aia.error_code = metrics.DIAMETER_ERROR_USER_UNKNOWN
             return aia
 
+    def _print_grpc(self, message):
+        if self._print_grpc_payload:
+            try:
+                log_msg = "{} {}".format(
+                    message.DESCRIPTOR.full_name,
+                    MessageToJson(message),
+                )
+                # add indentation
+                padding = 2 * ' '
+                log_msg = ''.join(
+                    "{}{}".format(padding, line)
+                    for line in log_msg.splitlines(True)
+                )
+
+                log_msg = "GRPC message:\n{}".format(log_msg)
+                logging.info(log_msg)
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning("Exception while trying to log GRPC: %s", e)

@@ -14,8 +14,6 @@ limitations under the License.
 // This is a proxy for Diamater application S6a/S6d 3GPP 29.272
 // It is watered down for use with OpenAirInterface EPC with extensibility in mind
 //
-// For details about fields see:
-// http://www.etsi.org/deliver/etsi_ts/129200_129299/129272/10.09.00_60/ts_129272v100900p.pdf
 
 syntax = "proto3";
 
@@ -60,20 +58,10 @@ enum M5GErrorCode {
 message M5GAuthenticationInformationRequest {
     // Subscriber identifier
     string user_name = 1;
-    // Visted site identifier
-    bytes visited_plmn = 2;
-    // Number of vectors to request in response
-    uint32 num_requested_m5gauth_vectors = 3;
-    // Indicates to the HSS the values are requested for immediate attach
-    bool immediate_response_preferred = 4;
-    // Concatenation of RAND and AUTS in the case of a resync attach case
-    bytes resync_info = 5;
-    // Number of UTRAN/GERAN vectors to request in response (optional)
-    uint32 num_requested_utran_geran_vectors = 6;
-    // UTRAN/GERAN Resync Info (optional)
-    bytes utran_geran_resync_info = 7;
-    // Name of the serving network
-    string serving_network_name = 8;
+    // Resync related information
+    bytes resync_info = 2;
+    // Name of the serving network (snni)
+    string serving_network_name = 3;
 }
 
 // Authentication Information Answer (Section 7.2.6)
