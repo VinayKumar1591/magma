@@ -1107,7 +1107,7 @@ int ngap_amf_generate_ue_context_release_command(
       OAILOG_ERROR_UE(LOG_NGAP, imsi64, "Unknown cause for context release");
       OAILOG_FUNC_RETURN(LOG_NGAP, RETURNerror);
   }
-  ngap_amf_set_cause(&ie->value.choice.Cause, cause_type, cause_value);
+  ngap_amf_set_cause(&ie->value.choice.Cause, Ngap_Cause_PR_radioNetwork, 20);
   ASN_SEQUENCE_ADD(&out->protocolIEs.list, ie);
 
   if (ngap_amf_encode_pdu(&pdu, &buffer, &length) < 0) {
