@@ -16,8 +16,8 @@
       "mmeGid": 1,
       "mmeRelativeCapacity": 11,
       "logLevel": "INFO",
-      "mcc": "001",
-      "mnc": "01",
+      "mcc": "311",
+      "mnc": "48",
       "tac": 1,
       "enableDnsCaching": false,
       "relayEnabled": false,
@@ -26,6 +26,10 @@
       "nonEpsServiceControl": 0,
       "csfbMcc": "001",
       "csfbMnc": "01",
+      "amf_name": "AMF_1",
+      "amfRegionId": "1",
+      "amfSetId": "1",
+      "amfPointer": "0",
       "lac": 1,
       "attachedEnodebTacs": [],
       "dnsPrimary": "8.8.8.8",
@@ -35,7 +39,7 @@
       "ipv6DnsAddress": "2001:4860:4860:0:0:0:0:8888",
       "natEnabled": true,
       "congestionControlEnabled": true,
-      "enableConvergedCore": false
+      "enableConvergedCore": true
     },
     "enodebd": {
       "@type": "type.googleapis.com/magma.mconfig.EnodebD",
