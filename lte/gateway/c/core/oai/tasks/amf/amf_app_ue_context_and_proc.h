@@ -451,6 +451,7 @@ union mobility_msg_u {
   RegistrationRejectMsg registrationrejectmsg;
   ServiceRequestMsg service_request;
   ServiceAcceptMsg service_accept;
+  ServiceRejectMsg service_reject;
   IdentityRequestMsg identityrequestmsg;
   IdentityResponseMsg identityresponsemsg;
   AuthenticationRequestMsg authenticationrequestmsg;

@@ -96,7 +96,27 @@ int amf_handle_service_request(
         (msg->service_type.service_type_value == SERVICE_TYPE_DATA) ||
         (msg->service_type.service_type_value ==
          SERVICE_TYPE_HIGH_PRIORITY_ACCESS)) {
-      OAILOG_DEBUG(LOG_NAS_AMF, "Service request type is Data \n");
+      OAILOG_INFO(LOG_NAS_AMF, "Service request type is Data \n");
+      if (!msg->uplink_data_status.uplinkDataStatus) {
+        OAILOG_ERROR(
+            LOG_NAS_AMF,
+            "uplink data Status not present for service data "
+            "(ue_id=" AMF_UE_NGAP_ID_FMT ")\n",
+            ue_id);
+
+        // Send prepare and send reject message.
+        amf_sap.primitive                      = AMFAS_ESTABLISH_REJ;
+        amf_sap.u.amf_as.u.establish.ue_id     = ue_id;
+        amf_sap.u.amf_as.u.establish.nas_info  = AMF_AS_NAS_INFO_SR;
+        amf_sap.u.amf_as.u.establish.amf_cause = AMF_CAUSE_CONDITIONAL_IE_ERROR;
+        if (msg->pdu_session_status.pduSessionStatus) {
+          amf_sap.u.amf_as.u.establish.pdu_sesion_status_ie |=
+              AMF_AS_PDU_SESSION_STATUS;
+          amf_sap.u.amf_as.u.establish.pdu_session_status =
+              msg->pdu_session_status.pduSessionStatus;
+        }
+        rc = amf_sap_send(&amf_sap);
+      }
       for (uint16_t session_id = 1; session_id < (sizeof(session_id) * 8);
            session_id++) {
         if (msg->uplink_data_status.uplinkDataStatus & (1 << session_id)) {
@@ -135,9 +155,16 @@ int amf_handle_service_request(
         ue_id);
 
     // Send prepare and send reject message.
-    amf_sap.primitive                     = AMFAS_ESTABLISH_REJ;
-    amf_sap.u.amf_as.u.establish.ue_id    = ue_id;
-    amf_sap.u.amf_as.u.establish.nas_info = AMF_AS_NAS_INFO_SR;
+    amf_sap.primitive                      = AMFAS_ESTABLISH_REJ;
+    amf_sap.u.amf_as.u.establish.ue_id     = ue_id;
+    amf_sap.u.amf_as.u.establish.nas_info  = AMF_AS_NAS_INFO_SR;
+    amf_sap.u.amf_as.u.establish.amf_cause = AMF_CAUSE_UE_ID_CAN_NOT_BE_DERIVED;
+    if (msg->pdu_session_status.pduSessionStatus) {
+      amf_sap.u.amf_as.u.establish.pdu_sesion_status_ie |=
+          AMF_AS_PDU_SESSION_STATUS;
+      amf_sap.u.amf_as.u.establish.pdu_session_status =
+          msg->pdu_session_status.pduSessionStatus;
+    }
 
     /* GUTI have already updated in amf_context during Identification
      * response complete, now assign to amf_sap

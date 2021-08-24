@@ -14,7 +14,6 @@
 #include "intertask_interface.h"
 #include "../../tasks/amf/amf_app_ue_context_and_proc.h"
 
-
 using ::testing::Test;
 
 task_zmq_ctx_t grpc_service_task_zmq_ctx;
@@ -259,6 +258,51 @@ TEST(test_smf_context_struct, test_smf_context_creation) {
   delete ue_context;
 }
 
+TEST(test_amf_nas5g_pkt_process, test_amf_service_reject_message) {
+  ServiceRejectMsg service_reject;
+  uint8_t buffer[50] = {0};
+
+  service_reject.extended_protocol_discriminator.extended_proto_discriminator =
+      M5G_MOBILITY_MANAGEMENT_MESSAGES;
+
+  service_reject.sec_header_type.sec_hdr = 0;
+  service_reject.spare_half_octet.spare  = 0;
+
+  service_reject.message_type.msg_type               = M5G_SERVICE_REJECT;
+  service_reject.pdu_session_status.iei              = PDU_SESSION_STATUS;
+  service_reject.pdu_session_status.len              = 0x02;
+  service_reject.pdu_session_status.pduSessionStatus = 0x05;
+
+  EXPECT_NE(
+      service_reject.EncodeServiceRejectMsg(&service_reject, buffer, 0), 0);
+}
+
+#if 0
+TEST(test_amf_nas5g_pkt_process, test_amf_service_accept) {
+#define PDU_SESSION_ID 0x0005
+
+  amf_as_establish_t svc_accpt_message = {0};
+  amf_nas_message_t nas_msg            = {0};
+
+  svc_accpt_message.pdu_session_status_ie |= AMF_AS_PDU_SESSION_STATUS;
+  svc_accpt_message.pdu_session_status = PDU_SESSION_ID;
+  svc_accpt_message.pdu_session_status_ie |=
+      AMF_AS_PDU_SESSION_REACTIVATION_STATUS;
+  svc_accpt_message.pdu_session_reactivation_status = PDU_SESSION_ID;
+
+  int result = amf_service_acceptmsg(&svc_accpt_message, &nas_msg);
+
+  EXPECT_GT(result, 0);
+  EXPECT_EQ(
+      nas_msg.security_protected.plain.amf.msg.service_accept.pdu_session_status
+          .pduSessionStatus,
+      PDU_SESSION_ID);
+  EXPECT_EQ(
+      nas_msg.security_protected.plain.amf.msg.service_accept
+          .pdu_re_activation_status.pduSessionReActivationResult,
+      PDU_SESSION_ID);
+}
+#endif
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -110,6 +110,7 @@ typedef struct amf_as_establish_s {
                      // information message
   guti_m5_t guti;    // TAU GUTI
   uint32_t t3502;    // TAU GPRS T3502 timer
+  uint32_t t3346;    // TAU GPRS T3346 timer2
   uint8_t
       presencemask;  // Indicates the presence of some params like service type
   uint8_t service_type;  // Extended service request initiated for which service

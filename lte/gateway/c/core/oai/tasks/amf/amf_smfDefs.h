@@ -32,8 +32,10 @@ namespace magma5g {
 //------------------------------------------------------------------------------
 // Causes related to invalid messages
 //------------------------------------------------------------------------------
+#define AMF_CAUSE_UE_ID_CAN_NOT_BE_DERIVED 9
 #define AMF_CAUSE_INVALID_MANDATORY_INFO 96
 #define AMF_CAUSE_IE_NOT_IMPLEMENTED 99
+#define AMF_CAUSE_CONDITIONAL_IE_ERROR 100
 #define AMF_CAUSE_PROTOCOL_ERROR 111
 #define PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED_t 0
 #define PROCEDURE_TRANSACTION_IDENTITY_LAST_t 254

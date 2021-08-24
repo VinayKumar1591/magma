@@ -30,6 +30,7 @@
 #include "M5GDLNASTransport.h"
 #include "M5GServiceRequest.h"
 #include "M5GServiceAccept.h"
+#include "M5GServiceReject.h"
 
 using namespace std;
 namespace magma5g {
@@ -48,6 +49,7 @@ union MMsg_u {
   RegistrationCompleteMsg reg_complete;
   RegistrationRejectMsg reg_reject;
   ServiceRequestMsg svc_req;
+  ServiceRejectMsg svc_rej;
   ServiceAcceptMsg svc_acpt;
   IdentityRequestMsg identity_request;
   IdentityResponseMsg identity_response;
