@@ -273,6 +273,9 @@ int amf_smf_send(
       // Initialize default APN
       memcpy(smf_ctx->apn, "internet", strlen("internet") + 1);
 
+      smf_ctx->smf_proc_data.pti.pti =
+          msg->payload_container.smf_msg.msg.pdu_session_estab_request.pti.pti;
+
       // send request to SMF over grpc
       /*
        * Execute the Grpc Send call of PDU establishment Request from AMF to SMF

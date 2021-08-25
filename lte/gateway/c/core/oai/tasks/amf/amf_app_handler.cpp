@@ -737,15 +737,16 @@ int amf_app_handle_pdu_session_accept(
 
   smf_msg->header.extended_protocol_discriminator =
       M5G_SESSION_MANAGEMENT_MESSAGES;
-  smf_msg->header.pdu_session_id = pdu_session_resp->pdu_session_id;
-  smf_msg->header.message_type   = PDU_SESSION_ESTABLISHMENT_ACCEPT;
-  // smf_msg->header.procedure_transaction_id = smf_ctx->smf_proc_data.pti.pti;
-  smf_msg->header.procedure_transaction_id = 0x01;
+  smf_msg->header.pdu_session_id           = pdu_session_resp->pdu_session_id;
+  smf_msg->header.message_type             = PDU_SESSION_ESTABLISHMENT_ACCEPT;
+  smf_msg->header.procedure_transaction_id = smf_ctx->smf_proc_data.pti.pti;
   smf_msg->msg.pdu_session_estab_accept.extended_protocol_discriminator
       .extended_proto_discriminator = M5G_SESSION_MANAGEMENT_MESSAGES;
   smf_msg->msg.pdu_session_estab_accept.pdu_session_identity.pdu_session_id =
       pdu_session_resp->pdu_session_id;
-  smf_msg->msg.pdu_session_estab_accept.pti.pti = 0x01;
+  smf_msg->msg.pdu_session_estab_accept.pti.pti =
+      smf_ctx->smf_proc_data.pti.pti;
+
   // smf_ctx->smf_proc_data.pti.pti;
   smf_msg->msg.pdu_session_estab_accept.message_type.msg_type =
       PDU_SESSION_ESTABLISHMENT_ACCEPT;
