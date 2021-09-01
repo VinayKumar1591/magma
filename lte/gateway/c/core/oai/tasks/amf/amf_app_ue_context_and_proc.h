@@ -59,6 +59,7 @@ extern "C" {
 #include "M5GDeRegistrationAcceptUEInit.h"
 #include "M5GULNASTransport.h"
 #include "M5GDLNASTransport.h"
+#include "M5GServiceReject.h"
 
 namespace magma5g {
 #define NAS5G_TIMER_INACTIVE_ID (-1)
@@ -312,7 +313,6 @@ typedef struct amf_context_s {
                     with a native non-current 5GMM security context.*/
   int amf_cause; /* AMF failure cause code                          */
   amf_fsm_state_t amf_fsm_state;
-  smf_context_t smf_context;  // Keeps PDU session related info
   void* t3422_arg;
   drx_parameter_t current_drx_parameter; /* stored TAU Request IE Requirement
                                              AMF24.501R15_5.5.3.2.4_4*/
@@ -451,6 +451,7 @@ union mobility_msg_u {
   RegistrationRejectMsg registrationrejectmsg;
   ServiceRequestMsg service_request;
   ServiceAcceptMsg service_accept;
+  ServiceRejectMsg service_reject;
   IdentityRequestMsg identityrequestmsg;
   IdentityResponseMsg identityresponsemsg;
   AuthenticationRequestMsg authenticationrequestmsg;

@@ -15,8 +15,11 @@ limitations under the License.
 
 using namespace std;
 namespace magma5g {
+#define AMF_CAUSE_LENGTH 1
 enum class m5gmm_cause : uint8_t {
-  NGKSI_ALREADY_IN_USE = 71,  // ngKSI already in use
+  UE_ID_CAN_NOT_BE_DERIVED = 9,
+  NGKSI_ALREADY_IN_USE     = 71,  // ngKSI already in use
+  CONDITIONAL_IE_MISSING   = 100,
   M5GMM_CAUSE_MAX
 };
 // M5GMMCause IE Class

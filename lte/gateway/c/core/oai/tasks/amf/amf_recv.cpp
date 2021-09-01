@@ -47,6 +47,7 @@ int amf_handle_service_request(
   uint16_t pdu_session_status      = 0;
   uint16_t pdu_reactivation_result = 0;
   uint32_t tmsi_stored;
+  guti_and_amf_id_t guti_and_amf_id;
 
   OAILOG_DEBUG(
       LOG_AMF_APP, "Received TMSI in message : %02x%02x%02x%02x",
@@ -72,12 +73,35 @@ int amf_handle_service_request(
       LOG_NAS_AMF, " TMSI stored in AMF CONTEXT %08" PRIx32 "\n", tmsi_stored);
   OAILOG_DEBUG(LOG_NAS_AMF, " TMSI received %08" PRIx32 "\n", tmsi_rcv);
 
-  if (ue_context) {
+  if (ue_context && (tmsi_rcv == tmsi_stored)) {
     OAILOG_DEBUG(
         LOG_NAS_AMF,
         "TMSI matched for the UE id %d "
         " receved TMSI %08X stored TMSI %08X \n",
         ue_id, tmsi_rcv, tmsi_stored);
+    imsi64_t imsi64                 = ue_context->amf_context.imsi64;
+    guti_and_amf_id.amf_guti.m_tmsi = ue_context->amf_context.m5_guti.m_tmsi;
+    guti_and_amf_id.amf_guti.guamfi = ue_context->amf_context.m5_guti.guamfi;
+    guti_and_amf_id.amf_ue_ngap_id  = ue_id;
+    if (amf_supi_guti_map.size() == 0) {
+      // first entry.
+      amf_supi_guti_map.insert(
+          std::pair<imsi64_t, guti_and_amf_id_t>(imsi64, guti_and_amf_id));
+    } else {
+      /* already elements exist then check if same imsi already present
+       * if same imsi then update/overwrite the element
+       */
+      std::unordered_map<imsi64_t, guti_and_amf_id_t>::iterator found_imsi =
+          amf_supi_guti_map.find(imsi64);
+      if (found_imsi == amf_supi_guti_map.end()) {
+        // it is new entry to map
+        amf_supi_guti_map.insert(
+            std::pair<imsi64_t, guti_and_amf_id_t>(imsi64, guti_and_amf_id));
+      } else {
+        // Overwrite the second element.
+        found_imsi->second = guti_and_amf_id;
+      }
+    }
 
     if (msg->service_type.service_type_value == SERVICE_TYPE_SIGNALING) {
       OAILOG_DEBUG(LOG_NAS_AMF, "Service request type is signalling \n");
@@ -85,39 +109,56 @@ int amf_handle_service_request(
 
       amf_sap.u.amf_as.u.establish.ue_id    = ue_id;
       amf_sap.u.amf_as.u.establish.nas_info = AMF_AS_NAS_INFO_SR;
-
-      /* GUTI have already updated in amf_context during Identification
-       * response complete, now assign to amf_sap
-       */
-      amf_sap.u.amf_as.u.establish.guti = ue_context->amf_context.m5_guti;
-      rc                                = amf_sap_send(&amf_sap);
-      ue_context->mm_state              = REGISTERED_CONNECTED;
+      rc                                    = amf_sap_send(&amf_sap);
+      ue_context->mm_state                  = REGISTERED_CONNECTED;
     } else if (
         (msg->service_type.service_type_value == SERVICE_TYPE_DATA) ||
         (msg->service_type.service_type_value ==
          SERVICE_TYPE_HIGH_PRIORITY_ACCESS)) {
-      OAILOG_DEBUG(LOG_NAS_AMF, "Service request type is Data \n");
-      for (uint16_t session_id = 1; session_id < (sizeof(session_id) * 8);
-           session_id++) {
-        if (msg->uplink_data_status.uplinkDataStatus & (1 << session_id)) {
-          smf_context_t* smf_context =
-              amf_smf_context_exists_pdu_session_id(ue_context, session_id);
-          if (smf_context) {
-            pdu_session_status |= (1 << session_id);
-            IMSI64_TO_STRING(ue_context->amf_context.imsi64, imsi, 15);
-            if (smf_context->pdu_address.pdn_type == IPv4) {
-              inet_ntop(
-                  AF_INET, &(smf_context->pdu_address.ipv4_address.s_addr),
-                  ip_str, INET_ADDRSTRLEN);
+      if ((msg->service_type.service_type_value == SERVICE_TYPE_DATA) &&
+          !(msg->uplink_data_status.uplinkDataStatus)) {
+        // prepare and send reject message.
+        OAILOG_INFO(
+            LOG_NAS_AMF,
+            "Sending service reject with cuase condtional IE missing\n");
+        amf_sap.primitive                     = AMFAS_ESTABLISH_REJ;
+        amf_sap.u.amf_as.u.establish.ue_id    = ue_id;
+        amf_sap.u.amf_as.u.establish.nas_info = AMF_AS_NAS_INFO_SR;
+        if (msg->pdu_session_status.iei) {
+          amf_sap.u.amf_as.u.establish.pdu_session_status_ie =
+              AMF_AS_PDU_SESSION_STATUS;
+          amf_sap.u.amf_as.u.establish.pdu_session_status =
+              msg->pdu_session_status.pduSessionStatus;
+        }
+        amf_sap.u.amf_as.u.establish.amf_cause =
+            AMF_CAUSE_CONDITIONAL_IE_MISSING;
+        rc = amf_sap_send(&amf_sap);
+      } else {
+        OAILOG_DEBUG(LOG_NAS_AMF, "Service request type is Data \n");
+        for (uint16_t session_id = 1; session_id < (sizeof(session_id) * 8);
+             session_id++) {
+          if (msg->uplink_data_status.uplinkDataStatus & (1 << session_id)) {
+            smf_context_t* smf_context =
+                amf_smf_context_exists_pdu_session_id(ue_context, session_id);
+            if (smf_context) {
+              pdu_session_status |= (1 << session_id);
+              IMSI64_TO_STRING(ue_context->amf_context.imsi64, imsi, 15);
+              if (smf_context->pdu_address.pdn_type == IPv4) {
+                inet_ntop(
+                    AF_INET, &(smf_context->pdu_address.ipv4_address.s_addr),
+                    ip_str, INET_ADDRSTRLEN);
+              }
+
+              OAILOG_DEBUG(
+                  LOG_NAS_AMF,
+                  "Sending session request to SMF on service request for "
+                  "sessiond %u\n",
+                  session_id);
+              notify_ue_event_type = UE_SERVICE_REQUEST_ON_PAGING;
+              // construct the proto structure and send message to SMF
+              amf_smf_notification_send(
+                  ue_id, ue_context, notify_ue_event_type);
             }
-            OAILOG_DEBUG(
-                LOG_NAS_AMF,
-                "Sending session request to SMF on service request for "
-                "sessiond %u\n",
-                session_id);
-            notify_ue_event_type = UE_SERVICE_REQUEST_ON_PAGING;
-            // construct the proto structure and send message to SMF
-            amf_smf_notification_send(ue_id, ue_context, notify_ue_event_type);
           }
         }
       }
@@ -128,22 +169,27 @@ int amf_handle_service_request(
       amf_smf_notification_send(ue_id, ue_context, notify_ue_event_type);
     }
   } else {
-    OAILOG_WARNING(
-        LOG_NAS_AMF,
-        "TMSI not matched for "
-        "(ue_id=" AMF_UE_NGAP_ID_FMT ")\n",
+    OAILOG_ERROR(
+        LOG_NAS_AMF, "TMSI not matched for ue_id= " AMF_UE_NGAP_ID_FMT "\n",
         ue_id);
+
+    OAILOG_ERROR(
+        LOG_AMF_APP, " TMSI received %u and TMSI stored %u \n", tmsi_rcv,
+        tmsi_stored);
 
     // Send prepare and send reject message.
     amf_sap.primitive                     = AMFAS_ESTABLISH_REJ;
     amf_sap.u.amf_as.u.establish.ue_id    = ue_id;
     amf_sap.u.amf_as.u.establish.nas_info = AMF_AS_NAS_INFO_SR;
 
-    /* GUTI have already updated in amf_context during Identification
-     * response complete, now assign to amf_sap
-     */
-    amf_sap.u.amf_as.u.establish.guti = ue_context->amf_context.m5_guti;
-    rc                                = amf_sap_send(&amf_sap);
+    if (msg->pdu_session_status.iei) {
+      amf_sap.u.amf_as.u.establish.pdu_session_status_ie =
+          AMF_AS_PDU_SESSION_STATUS;
+      amf_sap.u.amf_as.u.establish.pdu_session_status =
+          msg->pdu_session_status.pduSessionStatus;
+    }
+    amf_sap.u.amf_as.u.establish.amf_cause = AMF_CAUSE_UE_ID_CAN_NOT_BE_DERIVED;
+    rc                                     = amf_sap_send(&amf_sap);
   }
 
   OAILOG_FUNC_RETURN(LOG_NAS_AMF, rc);
@@ -216,7 +262,8 @@ int amf_handle_registration_request(
       if (msg->m5gs_mobile_identity.mobile_identity.imsi.protect_schm_id ==
           MOBILE_IDENTITY_PROTECTION_SCHEME_NULL) {
         /*
-         * Extract the SUPI or IMSI from SUCI as scheme output is not encrypted
+         * Extract the SUPI or IMSI from SUCI as scheme output is not
+         * encrypted
          */
         params->imsi = new imsi_t();
         /* Copying PLMN to local supi which is imsi*/
@@ -375,7 +422,8 @@ int amf_handle_registration_request(
       OAILOG_ERROR(
           LOG_AMF_APP,
           "UE context was not existing or UE identity type is not GUTI "
-          "Periodic Registration Update failed and sending reject message\n");
+          "Periodic Registration Update failed and sending reject "
+          "message\n");
       // TODO Implement Reject message
       return RETURNerror;
     }
@@ -393,19 +441,19 @@ int amf_handle_registration_request(
 }
 
 /****************************************************************************
- **                                                                        **
- ** Name:    amf_handle_identity_response()                                **
- **                                                                        **
- ** Description: Processes Identity Response message                       **
- **                                                                        **
- ** Inputs:  ue_id:      UE lower layer identifier                         **
- **      msg:       The received AMF message                               **
- **      Others:    None                                                   **
- **                                                                        **
- ** Outputs:     amf_cause: AMF cause code                                 **
- **      Return:    RETURNok, RETURNerror                                  **
- **      Others:    None                                                   **
- **                                                                        **
+ ** **
+ ** Name:    amf_handle_identity_response() **
+ ** **
+ ** Description: Processes Identity Response message **
+ ** **
+ ** Inputs:  ue_id:      UE lower layer identifier **
+ **      msg:       The received AMF message **
+ **      Others:    None **
+ ** **
+ ** Outputs:     amf_cause: AMF cause code **
+ **      Return:    RETURNok, RETURNerror **
+ **      Others:    None **
+ ** **
  ***************************************************************************/
 
 int amf_handle_identity_response(
@@ -436,7 +484,8 @@ int amf_handle_identity_response(
     if (msg->mobile_identity.imsi.protect_schm_id ==
         MOBILE_IDENTITY_PROTECTION_SCHEME_NULL) {
       /*
-       * Extract the SUPI or IMSI from SUCI as scheme output is not encrypted
+       * Extract the SUPI or IMSI from SUCI as scheme output is not
+       * encrypted
        */
       p_imsi                    = &imsi;
       supi_imsi.plmn.mcc_digit1 = msg->mobile_identity.imsi.mcc_digit1;
@@ -533,19 +582,19 @@ int amf_handle_identity_response(
 }
 
 /****************************************************************************
- **                                                                        **
- ** Name:    amf_handle_authentication_response()                          **
- **                                                                        **
- ** Description: Processes Authentication Response message                 **
- **                                                                        **
- ** Inputs:  ue_id:      UE lower layer identifier                         **
- **      msg:       The received AMF message                               **
- **      Others:    None                                                   **
- **                                                                        **
- ** Outputs:     amf_cause: AMF cause code                                 **
- **      Return:    RETURNok, RETURNerror                                  **
- **      Others:    None                                                   **
- **                                                                        **
+ ** **
+ ** Name:    amf_handle_authentication_response() **
+ ** **
+ ** Description: Processes Authentication Response message **
+ ** **
+ ** Inputs:  ue_id:      UE lower layer identifier **
+ **      msg:       The received AMF message **
+ **      Others:    None **
+ ** **
+ ** Outputs:     amf_cause: AMF cause code **
+ **      Return:    RETURNok, RETURNerror **
+ **      Others:    None **
+ ** **
  ***************************************************************************/
 int amf_handle_authentication_response(
     amf_ue_ngap_id_t ue_id, AuthenticationResponseMsg* msg, int amf_cause,
@@ -579,19 +628,19 @@ int amf_handle_authentication_response(
 }
 
 /****************************************************************************
- **                                                                        **
- ** Name:    amf_handle_authentication_failure()                           **
- **                                                                        **
- ** Description: Processes Authentication failure  message                 **
- **                                                                        **
- ** Inputs:  ue_id:      UE lower layer identifier                         **
- **      msg:       The received AMF message                               **
- **      Others:    None                                                   **
- **                                                                        **
- ** Outputs:     amf_cause: AMF cause code                                 **
- **      Return:    RETURNok, RETURNerror                                  **
- **      Others:    None                                                   **
- **                                                                        **
+ ** **
+ ** Name:    amf_handle_authentication_failure() **
+ ** **
+ ** Description: Processes Authentication failure  message **
+ ** **
+ ** Inputs:  ue_id:      UE lower layer identifier **
+ **      msg:       The received AMF message **
+ **      Others:    None **
+ ** **
+ ** Outputs:     amf_cause: AMF cause code **
+ **      Return:    RETURNok, RETURNerror **
+ **      Others:    None **
+ ** **
  ***************************************************************************/
 int amf_handle_authentication_failure(
     amf_ue_ngap_id_t ue_id, AuthenticationFailureMsg* msg, int amf_cause,
@@ -615,16 +664,16 @@ int amf_handle_authentication_failure(
 }
 
 /****************************************************************************
- **                                                                        **
- ** Name:    lookup_ue_ctxt_by_imsi()                                      **
- **                                                                        **
- ** Description: Lookup the guti structure based on imsi in                **
- **              amf_supi_guti_map                                         **
- **                                                                        **
- ** Inputs:  imsi64: imsi value                                            **
- **                                                                        **
- ** Outputs: ue_m5gmm_context_s: pointer to ue context                     **
- **                                                                        **
+ ** **
+ ** Name:    lookup_ue_ctxt_by_imsi() **
+ ** **
+ ** Description: Lookup the guti structure based on imsi in **
+ **              amf_supi_guti_map **
+ ** **
+ ** Inputs:  imsi64: imsi value **
+ ** **
+ ** Outputs: ue_m5gmm_context_s: pointer to ue context **
+ ** **
  ***************************************************************************/
 ue_m5gmm_context_s* lookup_ue_ctxt_by_imsi(imsi64_t imsi64) {
   /*Check imsi found
